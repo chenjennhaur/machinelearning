@@ -1,6 +1,6 @@
 Udacity - Deep Learning Course
 
-assign2_visualize.py : Assignment 2 neural network with a single hidden layer 
+t_neural.py : Assignment 2 neural network with 2 hidden layer 
 
 t_load_cnn.py : Loads MNIST dataset
 t_cnn.py : Runs CNN with dropout - Further work : clip_by_norm, LeNet , randomize the train batches instead of using offset
