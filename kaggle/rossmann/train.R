@@ -3,10 +3,10 @@ require(Matrix)
 require(xgboost)
 
 
-train <- read_csv('X_train.csv')
-ytrain <- read_csv('y_train.csv')
-test <- read_csv('X_test.csv')
-id <- read_csv('labels.csv')
+train <- read_csv('X_train.csv',col_names=FALSE)
+ytrain <- read_csv('y_train.csv',col_names=FALSE)
+test <- read_csv('X_test.csv',col_names=FALSE)
+id <- read_csv('labels.csv',col_names=FALSE)
 
 # train.full.sparse <- sparse.model.matrix(data=train)
   
@@ -57,6 +57,9 @@ clf <- xgb.train(   params              = param,
                     feval=rmpse
 )
 pred1 <- predict(clf, data.matrix(test))
+indices <- (test[,3] == 0)
+pred1[indices] = 0
+
 submission <- data.frame(Id=id, Sales=pred1)
 cat("saving the submission file\n")
 write_csv(submission, "rf1.csv")
