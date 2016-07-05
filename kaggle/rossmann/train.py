@@ -54,13 +54,12 @@ def ToWeight(y):
     w[ind] = 1/(y[ind]**2)
     return w
 
-def rmspe(y,yhat):
+def rmspe(ground_truth,prediction):
     #w = ToWeight(y)
-	w = np.zeros(y.shape, dtype=float)
-	ind = y != 0
-	w[ind] = 1/(y[ind]**2)
-	rmspe = np.sqrt(np.mean( w * (y-yhat)**2 ))
-	return rmspe
+	w = np.zeros(ground_truth.shape, dtype=float)
+	ind = ground_truth != 0
+	w[ind] = 1/(ground_truth[ind]**2)
+	return np.sqrt(np.mean( w * (ground_truth-prediction)**2 ))
 
 rmspe_scorer = make_scorer(rmspe,greater_is_better=False)
 	
@@ -77,30 +76,28 @@ features = (10,2,4,5,7,9,13,14,15,17,18,19,32,33,34,35,36,37,38,39,40)
 
 ### Cross Validation code
 X_train = dfxgb[dfxgb['Set']==1].iloc[:,features].values
-X_test = dfxgb[dfxgb['Set']==2].iloc[:,features].values
+# X_test = dfxgb[dfxgb['Set']==2].iloc[:,features].values
 y_train = dfxgb[dfxgb['Set']==1].iloc[:,6].values
-y_test = dfxgb[dfxgb['Set']==2].iloc[:,6].values
+# y_test = dfxgb[dfxgb['Set']==2].iloc[:,6].values
 
-param_grid = {"max_depth": [3, None],
-              "max_features": sp_randint(1, 15),
+param_grid = {
+              "max_features": sp_randint(10, 20),
               "min_samples_split": sp_randint(1, 11),
-              "min_samples_leaf": sp_randint(1, 11),
-              "bootstrap": [True, False],
+              "min_samples_leaf": sp_randint(1, 11)
              }
-model = RandomForestRegressor(n_estimators=8)
-rsearch = RandomizedSearchCV(estimator=model, param_distributions=param_grid, n_iter=5, scoring=rmspe_scorer,cv=2)
-rsearch.fit(X_train, y_train)
-# summarize the results of the random parameter search
+model = RandomForestRegressor(n_jobs=4)
+rsearch = RandomizedSearchCV(estimator=model,param_distributions=param_grid,n_iter=30,scoring=rmspe_scorer,cv=5)
+rsearch.fit(X_train,y_train)
 print(rsearch.best_score_)
 print(rsearch.best_estimator_)
 
-
-# rf = RandomForestRegressor()
+# rf = RandomForestRegressor(bootstrap=True,criterion='mse',max_depth=None,max_features=10,max_leaf_nodes=None,min_samples_leaf=4,min_samples_split=8,min_weight_fraction_leaf=0,n_estimators=8,n_jobs=4,oob_score=False,random_state=None,verbose=0,warm_start=False)
 # rf.fit(X_train,y_train)
 # pred_y = rf.predict(X_test)
+# result = rmspe(y_test,pred_y)
 
-# result = rmspe(pred_y,y_test)
-# print(result)
+# print(rmspe(y_train,rf.predict(X_train)))
+# print(rmspe_scorer(rf,X_train,y_train))
 
 # np.savetxt("X_train.csv",X_train,delimiter=",")
 # np.savetxt("X_test.csv",X_test,delimiter=",")
