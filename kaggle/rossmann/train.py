@@ -45,6 +45,7 @@ from sklearn.ensemble import RandomForestRegressor
 from sklearn.preprocessing import OneHotEncoder
 from sklearn.metrics import make_scorer
 from sklearn.grid_search import RandomizedSearchCV
+from sklearn.grid_search import GridSearchCV
 from scipy.stats import randint as sp_randint
 import numpy as np
 
@@ -76,22 +77,34 @@ features = (10,2,4,5,7,9,13,14,15,17,18,19,32,33,34,35,36,37,38,39,40)
 
 ### Cross Validation code
 X_train = dfxgb[dfxgb['Set']==1].iloc[:,features].values
-# X_test = dfxgb[dfxgb['Set']==2].iloc[:,features].values
+X_test = dfxgb[dfxgb['Set']==2].iloc[:,features].values
 y_train = dfxgb[dfxgb['Set']==1].iloc[:,6].values
-# y_test = dfxgb[dfxgb['Set']==2].iloc[:,6].values
+y_test = dfxgb[dfxgb['Set']==2].iloc[:,6].values
 
 param_grid = {
-              "max_features": sp_randint(10, 20),
-              "min_samples_split": sp_randint(1, 11),
-              "min_samples_leaf": sp_randint(1, 11)
+              "max_features": [10,15,20],
+              "min_samples_split": [5,10],
+              "min_samples_leaf": [5,10]
              }
 model = RandomForestRegressor(n_jobs=4)
-rsearch = RandomizedSearchCV(estimator=model,param_distributions=param_grid,n_iter=30,scoring=rmspe_scorer,cv=5)
+rsearch = GridSearchCV(estimator=model,param_grid=param_grid,scoring=rmspe_scorer)
 rsearch.fit(X_train,y_train)
 print(rsearch.best_score_)
 print(rsearch.best_estimator_)
 
-# rf = RandomForestRegressor(bootstrap=True,criterion='mse',max_depth=None,max_features=10,max_leaf_nodes=None,min_samples_leaf=4,min_samples_split=8,min_weight_fraction_leaf=0,n_estimators=8,n_jobs=4,oob_score=False,random_state=None,verbose=0,warm_start=False)
+# RandomizedSearchCV
+# param_grid = {
+              # "max_features": sp_randint(10, 20),
+              # "min_samples_split": sp_randint(1, 11),
+              # "min_samples_leaf": sp_randint(1, 11)
+             # }
+# model = RandomForestRegressor(n_jobs=4)
+# rsearch = RandomizedSearchCV(estimator=model,param_distributions=param_grid,n_iter=30,scoring=rmspe_scorer,cv=5)
+# rsearch.fit(X_train,y_train)
+# print(rsearch.best_score_)
+# print(rsearch.best_estimator_)
+
+# rf = RandomForestRegressor(bootstrap=True,criterion='mse',max_depth=None,max_features=13,max_leaf_nodes=None,min_samples_leaf=7,min_samples_split=10,min_weight_fraction_leaf=0,n_estimators=10,n_jobs=4,oob_score=False,random_state=None,verbose=0,warm_start=False)
 # rf.fit(X_train,y_train)
 # pred_y = rf.predict(X_test)
 # result = rmspe(y_test,pred_y)
