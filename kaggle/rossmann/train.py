@@ -43,6 +43,9 @@
 from sklearn.externals import joblib
 from sklearn.ensemble import RandomForestRegressor
 from sklearn.preprocessing import OneHotEncoder
+from sklearn.metrics import make_scorer
+from sklearn.grid_search import RandomizedSearchCV
+from scipy.stats import randint as sp_randint
 import numpy as np
 
 def ToWeight(y):
@@ -51,26 +54,46 @@ def ToWeight(y):
     w[ind] = 1/(y[ind]**2)
     return w
 
-def rmspe(yhat, y):
-    w = ToWeight(y)
-    rmspe = np.sqrt(np.mean( w * (y - yhat)**2 ))
-    return rmspe
+def rmspe(y,yhat):
+    #w = ToWeight(y)
+	w = np.zeros(y.shape, dtype=float)
+	ind = y != 0
+	w[ind] = 1/(y[ind]**2)
+	rmspe = np.sqrt(np.mean( w * (y-yhat)**2 ))
+	return rmspe
 
+rmspe_scorer = make_scorer(rmspe,greater_is_better=False)
+	
 dfxgb = joblib.load('pkl/dfxgb.pkl')
 # pred_y = joblib.load('pkl/pred_y.pkl')
-features = (10,2,5,7,9,13,14,15,17,18,19,32,33,34,35,36,37,38,39,40)
+features = (10,2,4,5,7,9,13,14,15,17,18,19,32,33,34,35,36,37,38,39,40)
 # Best
 # (2,4,5,7,9,11,12,13,18,19,24,25,26,27,28,29,30,31,32,33,34,35,36,37,38,39,40) - #0.133288201516
 # (2,4,5,7,9,11,12,13,14,15,17,28,29,30,31,32,33,34,35,36,37,38,39,40) - #0.161455
 # (10,2,5,7,9,13,14,15,17,18,19,32,33,34,35,36,37,38,39,40) - #0.15946
+# (10,2,4,5,7,9,13,14,15,17,18,19,32,33,34,35,36,37,38,39,40) - # 0.156
 # Not Good
 # 2,4,5,7,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,28,29,30,31,32,33,34,35,36,37,38,39,40
 
 ### Cross Validation code
-# X_train = dfxgb[dfxgb['Set']==1].iloc[:,features].values
-# X_test = dfxgb[dfxgb['Set']==2].iloc[:,features].values
-# y_train = dfxgb[dfxgb['Set']==1].iloc[:,6].values
-# y_test = dfxgb[dfxgb['Set']==2].iloc[:,6].values
+X_train = dfxgb[dfxgb['Set']==1].iloc[:,features].values
+X_test = dfxgb[dfxgb['Set']==2].iloc[:,features].values
+y_train = dfxgb[dfxgb['Set']==1].iloc[:,6].values
+y_test = dfxgb[dfxgb['Set']==2].iloc[:,6].values
+
+param_grid = {"max_depth": [3, None],
+              "max_features": sp_randint(1, 15),
+              "min_samples_split": sp_randint(1, 11),
+              "min_samples_leaf": sp_randint(1, 11),
+              "bootstrap": [True, False],
+             }
+model = RandomForestRegressor(n_estimators=8)
+rsearch = RandomizedSearchCV(estimator=model, param_distributions=param_grid, n_iter=5, scoring=rmspe_scorer,cv=2)
+rsearch.fit(X_train, y_train)
+# summarize the results of the random parameter search
+print(rsearch.best_score_)
+print(rsearch.best_estimator_)
+
 
 # rf = RandomForestRegressor()
 # rf.fit(X_train,y_train)
@@ -94,17 +117,17 @@ features = (10,2,5,7,9,13,14,15,17,18,19,32,33,34,35,36,37,38,39,40)
 # X_test = joblib.load('pkl/X_test.pkl')
 # labels = joblib.load('pkl/labels.pkl')
 
-X_train = dfxgb[dfxgb['Set']>0].iloc[:,features].values
-y_train = dfxgb[dfxgb['Set']>0].iloc[:,6].values
-X_test = dfxgb[dfxgb['Set']==0].iloc[:,features].values
-labels = dfxgb[dfxgb['Set']==0].iloc[:,3].values
+# X_train = dfxgb[dfxgb['Set']>0].iloc[:,features].values
+# y_train = dfxgb[dfxgb['Set']>0].iloc[:,6].values
+# X_test = dfxgb[dfxgb['Set']==0].iloc[:,features].values
+# labels = dfxgb[dfxgb['Set']==0].iloc[:,3].values
 
-rf = RandomForestRegressor(n_estimators=8)
-rf.fit(X_train,y_train)
+# rf = RandomForestRegressor(n_estimators=8)
+# rf.fit(X_train,y_train)
 
-pred_y = rf.predict(X_test)
-submission = np.vstack((labels.T,pred_y.T))
-np.savetxt("submission.txt",submission.T,delimiter=",",fmt='%d',header='"Id","Sales"',comments='')
+# pred_y = rf.predict(X_test)
+# submission = np.vstack((labels.T,pred_y.T))
+# np.savetxt("submission.txt",submission.T,delimiter=",",fmt='%d',header='"Id","Sales"',comments='')
 
 # For import to R
 # np.savetxt("X_train.csv",X_train,delimiter=",",fmt='%d')
