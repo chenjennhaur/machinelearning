@@ -77,9 +77,9 @@ def set_cv(data):
 	ps = PredefinedSplit(test_fold=cv_set)
 	return (X,y,ps)
 
-def parameter_tune(data,features,ps):
+def parameter_tune(data,features,X,y,ps):
 	param_grid = {
-              "max_features": [10,15,20],
+              "max_features": [10,20],
               "min_samples_split": [5,10],
               "min_samples_leaf": [5,10]
              }
@@ -118,7 +118,7 @@ features = (10,2,4,5,7,9,13,14,15,17,18,19,32,33,34,35,36,37,38,39,40)
 
 X,y,ps = set_cv(data)
 # select_features(dfxgb,(2),X,y,ps)	
-# parameter_tune(dfxgb,features,X,y,ps)
+parameter_tune(dfxgb,features,X,y,ps)
 
 	
 # rf = RandomForestRegressor(bootstrap=True,criterion='mse',max_depth=None,max_features=15,max_leaf_nodes=None,min_samples_leaf=7,min_samples_split=10,min_weight_fraction_leaf=0,n_estimators=10,n_jobs=4,oob_score=False,random_state=None,verbose=0,warm_start=False)
