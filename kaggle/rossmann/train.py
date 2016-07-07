@@ -108,7 +108,8 @@ def submission(model,X,y,X_test,labels):
 	np.savetxt("submission.txt",submit_file.T,delimiter=",",fmt='%d',header='"Id","Sales"',comments='')
 
 def select_features(model,data,feature_list,X,y,ps):
-	score = cross_val_score(model,X,y,scoring=rmspe_scorer,cv=ps)
+	score = np.mean(cross_val_score(model,X,y,scoring=rmspe_scorer,cv=ps))
+	return score
 	
 	
 rmspe_scorer = make_scorer(rmspe,greater_is_better=False)
