@@ -46,6 +46,8 @@ from sklearn.preprocessing import OneHotEncoder
 from sklearn.metrics import make_scorer
 from sklearn.grid_search import RandomizedSearchCV
 from sklearn.grid_search import GridSearchCV
+from sklearn.cross_validation import PredefinedSplit
+from sklearn.cross_validation import cross_val_score
 from scipy.stats import randint as sp_randint
 import numpy as np
 
@@ -62,8 +64,47 @@ def rmspe(ground_truth,prediction):
 	w[ind] = 1/(ground_truth[ind]**2)
 	return np.sqrt(np.mean( w * (ground_truth-prediction)**2 ))
 
-rmspe_scorer = make_scorer(rmspe,greater_is_better=False)
+### Parameter Tuning
+
+def set_cv(data):
+    data['CV'] = -1
+	data.loc[(data['Date']>='01-Aug-2014')&(data['Date']<='17-Sep-2014'),'CV'] = 0
+	data.loc[(data['Date']>='01-Aug-2013')&(data['Date']<='17-Sep-2013'),'CV'] = 1
+	data.loc[(data['Date']>='01-Jun-2015')&(data['Date']<='17-Jul-2015'),'CV'] = 2
+	X = data[data['Set']>0].iloc[:,features].values
+	y = data[data['Set']>0].iloc[:,6].values
+	cv_set = data[data['Set']>0].iloc[:,41].values
+	ps = PredefinedSplit(test_fold=cv_set)
+	return (X,y,ps)
+
+def parameter_tune(data,features,ps):
+	param_grid = {
+              "max_features": [10,15,20],
+              "min_samples_split": [5,10],
+              "min_samples_leaf": [5,10]
+             }
+			 
+	model = RandomForestRegressor(n_jobs=4)
+	rsearch = GridSearchCV(estimator=model,param_grid=param_grid,scoring=rmspe_scorer,cv=ps)
+	rsearch.fit(X,y)
 	
+	# RandomizedSearchCV
+	# param_grid = {
+				  # "max_features": sp_randint(10, 20),
+				  # "min_samples_split": sp_randint(1, 11),
+				  # "min_samples_leaf": sp_randint(1, 11)
+				 # }
+	# model = RandomForestRegressor(n_jobs=4)
+	# rsearch = RandomizedSearchCV(estimator=model,param_distributions=param_grid,n_iter=30,scoring=rmspe_scorer,cv=5)
+	# rsearch.fit(X_train,y_train)
+	print(rsearch.best_score_)
+	print(rsearch.best_estimator_)
+
+def select_features(data,feature_list,ps):
+	cross_val_score()
+	
+rmspe_scorer = make_scorer(rmspe,greater_is_better=False)
+
 dfxgb = joblib.load('pkl/dfxgb.pkl')
 # pred_y = joblib.load('pkl/pred_y.pkl')
 features = (10,2,4,5,7,9,13,14,15,17,18,19,32,33,34,35,36,37,38,39,40)
@@ -75,36 +116,12 @@ features = (10,2,4,5,7,9,13,14,15,17,18,19,32,33,34,35,36,37,38,39,40)
 # Not Good
 # 2,4,5,7,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,28,29,30,31,32,33,34,35,36,37,38,39,40
 
-### Cross Validation code
-X_train = dfxgb[dfxgb['Set']==1].iloc[:,features].values
-X_test = dfxgb[dfxgb['Set']==2].iloc[:,features].values
-y_train = dfxgb[dfxgb['Set']==1].iloc[:,6].values
-y_test = dfxgb[dfxgb['Set']==2].iloc[:,6].values
+X,y,ps = set_cv(data)
+# select_features(dfxgb,(2),X,y,ps)	
+# parameter_tune(dfxgb,features,X,y,ps)
 
-param_grid = {
-              "max_features": [10,15,20],
-              "min_samples_split": [5,10],
-              "min_samples_leaf": [5,10]
-             }
-model = RandomForestRegressor(n_jobs=4)
-rsearch = GridSearchCV(estimator=model,param_grid=param_grid,scoring=rmspe_scorer)
-rsearch.fit(X_train,y_train)
-print(rsearch.best_score_)
-print(rsearch.best_estimator_)
-
-# RandomizedSearchCV
-# param_grid = {
-              # "max_features": sp_randint(10, 20),
-              # "min_samples_split": sp_randint(1, 11),
-              # "min_samples_leaf": sp_randint(1, 11)
-             # }
-# model = RandomForestRegressor(n_jobs=4)
-# rsearch = RandomizedSearchCV(estimator=model,param_distributions=param_grid,n_iter=30,scoring=rmspe_scorer,cv=5)
-# rsearch.fit(X_train,y_train)
-# print(rsearch.best_score_)
-# print(rsearch.best_estimator_)
-
-# rf = RandomForestRegressor(bootstrap=True,criterion='mse',max_depth=None,max_features=13,max_leaf_nodes=None,min_samples_leaf=7,min_samples_split=10,min_weight_fraction_leaf=0,n_estimators=10,n_jobs=4,oob_score=False,random_state=None,verbose=0,warm_start=False)
+	
+# rf = RandomForestRegressor(bootstrap=True,criterion='mse',max_depth=None,max_features=15,max_leaf_nodes=None,min_samples_leaf=7,min_samples_split=10,min_weight_fraction_leaf=0,n_estimators=10,n_jobs=4,oob_score=False,random_state=None,verbose=0,warm_start=False)
 # rf.fit(X_train,y_train)
 # pred_y = rf.predict(X_test)
 # result = rmspe(y_test,pred_y)
