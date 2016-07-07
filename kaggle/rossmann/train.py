@@ -67,7 +67,7 @@ def rmspe(ground_truth,prediction):
 ### Parameter Tuning
 
 def set_cv(data):
-    data['CV'] = -1
+	data['CV'] = -1
 	data.loc[(data['Date']>='01-Aug-2014')&(data['Date']<='17-Sep-2014'),'CV'] = 0
 	data.loc[(data['Date']>='01-Aug-2013')&(data['Date']<='17-Sep-2013'),'CV'] = 1
 	data.loc[(data['Date']>='01-Jun-2015')&(data['Date']<='17-Jul-2015'),'CV'] = 2
@@ -79,12 +79,12 @@ def set_cv(data):
 
 def parameter_tune(data,features,X,y,ps):
 	param_grid = {
-              "max_features": [10,20],
-              "min_samples_split": [5,10],
-              "min_samples_leaf": [5,10]
+              "max_features": [5,10],
+              "min_samples_split": [10],
+              "min_samples_leaf": [10]
              }
 			 
-	model = RandomForestRegressor(n_jobs=4)
+	model = RandomForestRegressor(n_jobs=-1)
 	rsearch = GridSearchCV(estimator=model,param_grid=param_grid,scoring=rmspe_scorer,cv=ps)
 	rsearch.fit(X,y)
 	
@@ -99,9 +99,17 @@ def parameter_tune(data,features,X,y,ps):
 	# rsearch.fit(X_train,y_train)
 	print(rsearch.best_score_)
 	print(rsearch.best_estimator_)
+	return rsearch.best_estimator_
 
-def select_features(data,feature_list,ps):
-	cross_val_score()
+def submission(model,X,y,X_test,labels):
+	model.fit(X,y)
+	pred_y = model.predict(X_test)
+	submit_file = np.vstack((labels.T,pred_y.T))
+	np.savetxt("submission.txt",submit_file.T,delimiter=",",fmt='%d',header='"Id","Sales"',comments='')
+
+def select_features(model,data,feature_list,X,y,ps):
+	score = cross_val_score(model,X,y,scoring=rmspe_scorer,cv=ps)
+	
 	
 rmspe_scorer = make_scorer(rmspe,greater_is_better=False)
 
@@ -116,45 +124,18 @@ features = (10,2,4,5,7,9,13,14,15,17,18,19,32,33,34,35,36,37,38,39,40)
 # Not Good
 # 2,4,5,7,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,28,29,30,31,32,33,34,35,36,37,38,39,40
 
-X,y,ps = set_cv(data)
-# select_features(dfxgb,(2),X,y,ps)	
-parameter_tune(dfxgb,features,X,y,ps)
+X,y,ps = set_cv(dfxgb)
+rf = RandomForestRegressor()
+# select_features(rf,dfxgb,(2),X,y,ps)	
+clf = parameter_tune(rf,dfxgb,features,X,y,ps)
 
+# Submission
+labels = dfxgb[dfxgb['Set']==0].iloc[:,3].values
+X_test = dfxgb[dfxgb['Set']==0].iloc[:,features].values
+submission(clf,X,y,X_test,labels)
 	
-# rf = RandomForestRegressor(bootstrap=True,criterion='mse',max_depth=None,max_features=15,max_leaf_nodes=None,min_samples_leaf=7,min_samples_split=10,min_weight_fraction_leaf=0,n_estimators=10,n_jobs=4,oob_score=False,random_state=None,verbose=0,warm_start=False)
-# rf.fit(X_train,y_train)
-# pred_y = rf.predict(X_test)
-# result = rmspe(y_test,pred_y)
 
-# print(rmspe(y_train,rf.predict(X_train)))
-# print(rmspe_scorer(rf,X_train,y_train))
-
-# np.savetxt("X_train.csv",X_train,delimiter=",")
-# np.savetxt("X_test.csv",X_test,delimiter=",")
-# np.savetxt("y_train.csv",y_train,delimiter=",")
-# np.savetxt("y_test.csv",y_test,delimiter=",")
-
-# joblib.dump(pred_y,'pkl/pred_y.pkl')
-# joblib.dump(y_test,'pkl/y_test.pkl')
-
-### Submission code (Ctrl-K,Q)
-
-# X_train = joblib.load('pkl/X_train.pkl')
-# y_train = joblib.load('pkl/y_train.pkl')
-# X_test = joblib.load('pkl/X_test.pkl')
-# labels = joblib.load('pkl/labels.pkl')
-
-# X_train = dfxgb[dfxgb['Set']>0].iloc[:,features].values
-# y_train = dfxgb[dfxgb['Set']>0].iloc[:,6].values
-# X_test = dfxgb[dfxgb['Set']==0].iloc[:,features].values
-# labels = dfxgb[dfxgb['Set']==0].iloc[:,3].values
-
-# rf = RandomForestRegressor(n_estimators=8)
-# rf.fit(X_train,y_train)
-
-# pred_y = rf.predict(X_test)
-# submission = np.vstack((labels.T,pred_y.T))
-# np.savetxt("submission.txt",submission.T,delimiter=",",fmt='%d',header='"Id","Sales"',comments='')
+### Comment (Ctrl-K,Q)
 
 # For import to R
 # np.savetxt("X_train.csv",X_train,delimiter=",",fmt='%d')
