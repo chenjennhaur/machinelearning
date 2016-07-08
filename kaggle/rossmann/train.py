@@ -50,6 +50,7 @@ from sklearn.cross_validation import PredefinedSplit
 from sklearn.cross_validation import cross_val_score
 from scipy.stats import randint as sp_randint
 import numpy as np
+import random
 
 def ToWeight(y):
     w = np.zeros(y.shape, dtype=float)
@@ -66,11 +67,11 @@ def rmspe(ground_truth,prediction):
 
 ### Parameter Tuning
 
-def set_cv(data):
+def set_cv(data,best_features):
 	data['CV'] = -1
-	data.loc[(data['Date']>='01-Aug-2014')&(data['Date']<='17-Sep-2014'),'CV'] = 0
+	# data.loc[(data['Date']>='01-Aug-2014')&(data['Date']<='17-Sep-2014'),'CV'] = 0
 	data.loc[(data['Date']>='01-Aug-2013')&(data['Date']<='17-Sep-2013'),'CV'] = 1
-	data.loc[(data['Date']>='01-Jun-2015')&(data['Date']<='17-Jul-2015'),'CV'] = 2
+	# data.loc[(data['Date']>='01-Jun-2015')&(data['Date']<='17-Jul-2015'),'CV'] = 2
 	X = data[data['Set']>0].iloc[:,best_features].values
 	y = data[data['Set']>0].iloc[:,6].values
 	cv_set = data[data['Set']>0].iloc[:,41].values
@@ -107,23 +108,27 @@ def submission(model,X,y,X_test,labels):
 	submit_file = np.vstack((labels.T,pred_y.T))
 	np.savetxt("submission.txt",submit_file.T,delimiter=",",fmt='%d',header='"Id","Sales"',comments='')
 
-def select_features(model,data,feature_list,ps):
-	non_features = ('Customers','Date','Id','Set','Sales')
-	curr_features = ['DayOfWeek','SchoolHoliday']
+def select_features(model,data,ps):
+	curr_features = []
+	non_features = ('Customers','Date','Id','Set','Sales','CV')
 	all_features = data.columns.tolist()
-	
-	f = all_features.pop(1)
-	if f not in non_features or f not in curr_features : 
-		curr_features = list(set(curr_features + [f]))
-		X_select = data[data['Set']>0].iloc[:,curr_features].values
-		y_select = data[data['Set']>0].iloc[:,6].values
-		score = np.mean(cross_val_score(model,X_select,y_select,scoring=rmspe_scorer,cv=ps))
-		curr_features.pop()
-		
-		
-		
-	
-	return score
+	min_score = 1000000
+	random.shuffle(all_features)
+	for f in all_features:
+		# f = all_features.pop(1)
+		if (f not in non_features) and (f not in curr_features) : 
+			print("New Feature Added ",f)
+			curr_features = list(set(curr_features + [f]))
+			Xs = data[data['Set']>0].loc[:,curr_features].values
+			ys = data[data['Set']>0].iloc[:,6].values
+			score = -np.mean(cross_val_score(model,Xs,ys,scoring=rmspe_scorer,cv=ps))
+			if (score < min_score): min_score = score
+			if (score > min_score): curr_features.remove(f)
+		print(min_score)
+		print(curr_features)
+	print("Minimum Score with features ",min_score)
+	print("Best Features ",curr_features)
+	return list(curr_features)
 	
 	
 rmspe_scorer = make_scorer(rmspe,greater_is_better=False)
@@ -140,15 +145,16 @@ best_features = (10,2,4,5,7,9,13,14,15,17,18,19,32,33,34,35,36,37,38,39,40)
 # Not Good
 # 2,4,5,7,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,28,29,30,31,32,33,34,35,36,37,38,39,40
 
-X,y,ps = set_cv(dfxgb)
+X,y,ps = set_cv(dfxgb,best_features)
 rf = RandomForestRegressor()
-# select_features(rf,dfxgb,(2),X,y,ps)	
-clf = parameter_tune(rf,dfxgb,best_features,X,y,ps)
+select_features(rf,dfxgb,ps)	
+
+# clf = parameter_tune(rf,dfxgb,best_features,X,y,ps)
 
 # Submission
-labels = dfxgb[dfxgb['Set']==0].iloc[:,3].values
-X_test = dfxgb[dfxgb['Set']==0].iloc[:,features].values
-submission(clf,X,y,X_test,labels)
+# labels = dfxgb[dfxgb['Set']==0].iloc[:,3].values
+# X_test = dfxgb[dfxgb['Set']==0].iloc[:,features].values
+# submission(clf,X,y,X_test,labels)
 	
 
 ### Comment (Ctrl-K,Q)
