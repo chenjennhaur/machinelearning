@@ -71,7 +71,7 @@ def set_cv(data):
 	data.loc[(data['Date']>='01-Aug-2014')&(data['Date']<='17-Sep-2014'),'CV'] = 0
 	data.loc[(data['Date']>='01-Aug-2013')&(data['Date']<='17-Sep-2013'),'CV'] = 1
 	data.loc[(data['Date']>='01-Jun-2015')&(data['Date']<='17-Jul-2015'),'CV'] = 2
-	X = data[data['Set']>0].iloc[:,features].values
+	X = data[data['Set']>0].iloc[:,best_features].values
 	y = data[data['Set']>0].iloc[:,6].values
 	cv_set = data[data['Set']>0].iloc[:,41].values
 	ps = PredefinedSplit(test_fold=cv_set)
@@ -107,8 +107,22 @@ def submission(model,X,y,X_test,labels):
 	submit_file = np.vstack((labels.T,pred_y.T))
 	np.savetxt("submission.txt",submit_file.T,delimiter=",",fmt='%d',header='"Id","Sales"',comments='')
 
-def select_features(model,data,feature_list,X,y,ps):
-	score = np.mean(cross_val_score(model,X,y,scoring=rmspe_scorer,cv=ps))
+def select_features(model,data,feature_list,ps):
+	non_features = ('Customers','Date','Id','Set','Sales')
+	curr_features = ['DayOfWeek','SchoolHoliday']
+	all_features = data.columns.tolist()
+	
+	f = all_features.pop(1)
+	if f not in non_features or f not in curr_features : 
+		curr_features = list(set(curr_features + [f]))
+		X_select = data[data['Set']>0].iloc[:,curr_features].values
+		y_select = data[data['Set']>0].iloc[:,6].values
+		score = np.mean(cross_val_score(model,X_select,y_select,scoring=rmspe_scorer,cv=ps))
+		curr_features.pop()
+		
+		
+		
+	
 	return score
 	
 	
@@ -116,7 +130,8 @@ rmspe_scorer = make_scorer(rmspe,greater_is_better=False)
 
 dfxgb = joblib.load('pkl/dfxgb.pkl')
 # pred_y = joblib.load('pkl/pred_y.pkl')
-features = (10,2,4,5,7,9,13,14,15,17,18,19,32,33,34,35,36,37,38,39,40)
+
+best_features = (10,2,4,5,7,9,13,14,15,17,18,19,32,33,34,35,36,37,38,39,40)
 # Best
 # (2,4,5,7,9,11,12,13,18,19,24,25,26,27,28,29,30,31,32,33,34,35,36,37,38,39,40) - #0.133288201516
 # (2,4,5,7,9,11,12,13,14,15,17,28,29,30,31,32,33,34,35,36,37,38,39,40) - #0.161455
@@ -128,7 +143,7 @@ features = (10,2,4,5,7,9,13,14,15,17,18,19,32,33,34,35,36,37,38,39,40)
 X,y,ps = set_cv(dfxgb)
 rf = RandomForestRegressor()
 # select_features(rf,dfxgb,(2),X,y,ps)	
-clf = parameter_tune(rf,dfxgb,features,X,y,ps)
+clf = parameter_tune(rf,dfxgb,best_features,X,y,ps)
 
 # Submission
 labels = dfxgb[dfxgb['Set']==0].iloc[:,3].values
@@ -151,4 +166,3 @@ submission(clf,X,y,X_test,labels)
 # joblib.dump(labels,'pkl/labels.pkl')
 # joblib.dump(pred_y,'pkl/pred_y.pkl')
 # joblib.dump(rf,'pkl/rf.pkl')
-
